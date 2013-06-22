@@ -66,7 +66,7 @@ namespace Jasen.Framework.Transform
         public void GetConfiguration(Type type)
         {
 
-            if (type == null || 
+            if (type == null ||
                 type.GetProperties().Length <= 0)
             {
                 return;
@@ -94,9 +94,9 @@ namespace Jasen.Framework.Transform
         /// </summary>
         public int Count
         {
-            get 
-            { 
-                return _columnAttributes.Count; 
+            get
+            {
+                return _columnAttributes.Count;
             }
         }
 

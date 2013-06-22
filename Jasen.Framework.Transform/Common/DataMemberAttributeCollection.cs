@@ -11,21 +11,16 @@ namespace Jasen.Framework.Transform
     /// </summary>
     public class DataMemberAttributeCollection : IEnumerable<DataMemberAttribute>
     {
-        private IList<DataMemberAttribute> _columnAttributes = new List<DataMemberAttribute>();
+        private IList<DataMemberAttribute> _memberAttributes = new List<DataMemberAttribute>();
 
-        /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="type"></param>
-        public DataMemberAttributeCollection(Type type)
+        public DataMemberAttributeCollection(Type type, params string[] propertyNames)
         {
-            this.GetConfiguration(type);
+            this.GetConfiguration(type, propertyNames);
         }
 
         public IEnumerator<DataMemberAttribute> GetEnumerator()
         {
-            return this._columnAttributes.GetEnumerator();
-
+            return this._memberAttributes.GetEnumerator();
         }
 
         public DataMemberAttribute this[int index]
@@ -37,7 +32,7 @@ namespace Jasen.Framework.Transform
                     throw new IndexOutOfRangeException();
                 }
 
-                return this._columnAttributes[index];
+                return this._memberAttributes[index];
             }
         }
 
@@ -45,13 +40,58 @@ namespace Jasen.Framework.Transform
         /// 
         /// </summary>
         /// <param name="type"></param>
-        public void GetConfiguration(Type type)
+        public void GetConfiguration(Type type, params string[] propertyNames)
         {
             if (type == null || type.GetProperties().Length <= 0)
             {
                 return;
             }
 
+            if (propertyNames == null || propertyNames.Length == 0)
+            {
+                AddAllDataMemberAttributes(type);
+            }
+            else
+            {
+                AddDataMemberAttributes(type, propertyNames);
+            }
+
+            this._memberAttributes = this._memberAttributes.OrderBy(p => p.Order).ToList();
+        }
+
+        private void AddDataMemberAttributes(Type type, string[] propertyNames)
+        {
+            IList<PropertyInfo> validPropertyInfos = new List<PropertyInfo>();
+            PropertyInfo tempPropertyInfo;
+
+            foreach (string propertyName in propertyNames)
+            {
+                if (string.IsNullOrWhiteSpace(propertyName))
+                {
+                    continue;
+                }
+
+                tempPropertyInfo = type.GetProperty(propertyName.Trim());
+
+                if (tempPropertyInfo == null)
+                {
+                    throw new ArgumentException(string.Format(@"Contains Invalid Property Name Arg : {0}.", propertyName.Trim()));
+                }
+
+                validPropertyInfos.Add(tempPropertyInfo);
+            }
+
+            if (validPropertyInfos.Count() > 0)
+            {
+                foreach (var property in validPropertyInfos)
+                {
+                    AddAttributes(new DataMemberAttribute(), property);
+                }
+            }
+        }
+
+        private void AddAllDataMemberAttributes(Type type)
+        {
             DataMemberAttribute attr = null;
             foreach (PropertyInfo propertyInfo in type.GetProperties())
             {
@@ -67,19 +107,28 @@ namespace Jasen.Framework.Transform
                     continue;
                 }
 
-                if (string.IsNullOrWhiteSpace(attr.Name))
+                if (this._memberAttributes.Count(p => p.Order == attr.Order) > 0)
                 {
-                    attr.Name = propertyInfo.Name;
+                    throw new ArgumentException(string.Format(@"Contains Same Order {0}.Please Look Up DataMemberAttribute
+                            Of The Type {1}", attr.Order, type.Name));
                 }
 
-                attr.PropertyName = propertyInfo.Name;
-                attr.PropertyType = propertyInfo.PropertyType;
-                attr.PropertyInfo = propertyInfo;
+                AddAttributes(attr, propertyInfo);
+            }
+        }
 
-                this._columnAttributes.Add(attr);
+        private void AddAttributes(DataMemberAttribute attr, PropertyInfo propertyInfo)
+        {
+            if (string.IsNullOrWhiteSpace(attr.Name))
+            {
+                attr.Name = propertyInfo.Name;
             }
 
-            this._columnAttributes = this._columnAttributes.OrderBy(p => p.Order).ToList();
+            attr.PropertyName = propertyInfo.Name;
+            attr.PropertyType = propertyInfo.PropertyType;
+            attr.PropertyInfo = propertyInfo;
+
+            this._memberAttributes.Add(attr);
         }
 
         /// <summary>
@@ -89,13 +138,13 @@ namespace Jasen.Framework.Transform
         {
             get
             {
-                return _columnAttributes.Count;
+                return this._memberAttributes.Count;
             }
         }
 
         IEnumerator IEnumerable.GetEnumerator()
         {
-            return _columnAttributes.GetEnumerator();
+            return this._memberAttributes.GetEnumerator();
         }
     }
 }

@@ -51,9 +51,11 @@
     </CodeAnalysisDependentAssemblyPaths>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="ContinousContract.cs" />
     <Compile Include="EnumFieldProviderTest.cs" />
     <Compile Include="ExchangeType.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="ResultTransferTest.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Jasen.Framework.Transform\Jasen.Framework.Transform.csproj">

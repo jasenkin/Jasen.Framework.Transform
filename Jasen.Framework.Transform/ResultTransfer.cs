@@ -9,7 +9,7 @@ namespace Jasen.Framework.Transform
 {
     public class ResultTransfer
     {
-        public static IEnumerable<string> GenerateAndFilterLines(string content)
+        public static IEnumerable<string> GenerateAndFilterLines(string content, bool skipFirstLine = false)
         {
             if (string.IsNullOrWhiteSpace(content))
             {
@@ -23,8 +23,7 @@ namespace Jasen.Framework.Transform
                 return new List<string>();
             }
 
-            return rows.Skip(1);
-
+            return skipFirstLine ? rows.Skip(1) : rows;
         }
 
         public static string GetLastLine(string content)
@@ -80,19 +79,24 @@ namespace Jasen.Framework.Transform
             return entityRows;
         }
 
-        public static IList<T> Generate<T>(string content) where T : new()
+        public static IList<T> Generate<T>(string content, params string[] propertyNames) where T : new()
         {
             var lines = GenerateAndFilterLines(content);
 
             var entityRows = Generate(lines);
 
+            return Parse<T>(entityRows, propertyNames);
+        }
+
+        public static IList<T> Parse<T>(IEnumerable<IEnumerable<string>> entityRows, params string[] propertyNames) where T : new()
+        {
             if (entityRows == null || entityRows.Count() == 0)
             {
                 return new List<T>();
             }
 
             IList<T> entities = new List<T>();
-            var members = new DataMemberAttributeCollection(typeof(T));
+            var members = new DataMemberAttributeCollection(typeof(T), propertyNames);
 
             if (members.Count <= 1)
             {
@@ -114,36 +118,48 @@ namespace Jasen.Framework.Transform
             return entities;
         }
 
-        private static T Generate<T>(IList<string> propertyValues, DataMemberAttributeCollection members,
+        private static T Generate<T>(IEnumerable<string> propertyValues, DataMemberAttributeCollection members,
             FuncProvider funcProvider) where T : new()
         {
             T entity = Activator.CreateInstance<T>();
             int memberCount = members.Count;
             int propertyCount = propertyValues.Count();
+
+            if (memberCount == 0 || propertyCount == 0)
+            {
+                return entity;
+            }
+
             int convertCount = Math.Min(memberCount, propertyCount);
-            string currentValue;
             DataMemberAttribute currAttribute;
             PropertyInfo currPropertyInfo;
 
-            for (int propertyIndex = 0; propertyIndex < convertCount; propertyIndex++)
+            int propertyValueIndex = 0;
+
+            foreach (string propertyValue in propertyValues)
             {
-                currentValue = propertyValues[propertyIndex];
-                currAttribute = members[propertyIndex];
+                if (propertyValueIndex >= convertCount)
+                {
+                    break;
+                }
+
+                propertyValueIndex++;
+                currAttribute = members[propertyValueIndex - 1];
                 currPropertyInfo = currAttribute.PropertyInfo;
 
-                if (currentValue == null)
+                if (propertyValue == null)
                 {
                     currPropertyInfo.SetValue(entity, null, null);
                     continue;
                 }
 
-                if (currentValue.GetType() == currAttribute.PropertyType)
+                if (propertyValue.GetType() == currAttribute.PropertyType)
                 {
-                    currPropertyInfo.SetValue(entity, currentValue, null);
+                    currPropertyInfo.SetValue(entity, propertyValue, null);
                 }
                 else
                 {
-                    object result = funcProvider.DynamicInvoke(currAttribute.PropertyType, (currentValue ?? string.Empty).ToString());
+                    object result = funcProvider.DynamicInvoke(currAttribute.PropertyType, (propertyValue ?? string.Empty).ToString());
                     currPropertyInfo.SetValue(entity, result, null);
                 }
             }
